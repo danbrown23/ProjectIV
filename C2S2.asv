@@ -1,0 +1,55 @@
+%% PARAMETER REGIME
+
+w=1;
+R0=1;
+s=1;
+T=0.05;
+r_R=1;
+
+% PLOT NEATING
+
+set(0,'defaultTextFontName', 'Arial')
+set(0,'defaultaxesfontsize', 20); % 27 for 1X3, 20 for 1X2
+set(0,'defaultAxesTickLabelInterpreter','none');
+set(0,'defaulttextinterpreter','latex');
+set(0,'defaultAxesXGrid','off');
+set(0,'defaultAxesYGrid','off');
+set(0,'defaultAxesTickDir','out');
+set(0,'defaultAxesLineWidth',1.5);
+
+%% preliminary functions
+
+function y = r_X(x,w,R0,s,T) % Growth Rate
+    y = -T+w*R0/sqrt(1+s^(-2))*exp(-x.^2./(2+2*s^2));
+end
+
+function y = K_X(x,w,R0,s,T,r_R) % Carrying Capacity
+    y = sqrt(2*pi)*r_R*sqrt(2+s^(-2))*exp(x.^2./(1+2*s^2)).*(-T/(R0*w)+sqrt(1+s^(-2))^(-1)*exp(-x.^2./(2+2*s^2)));
+end
+
+function y = alpha(x,y,s) % competition experienced by species x from species y
+    y = exp((2.*x.^2-(1+s^2).*x.^2+2.*s^2.*x.*y-(1+s^2).*y.^2)./(2.*(1+2*s^2)));
+end
+
+figure(1) %% fitness surface
+
+function y = f(x,y,s,w,R0,T) % fitness of the mutant y under x's regime
+    y = r_X(y,w,R0,s,T) - r_X(x,w,R0,s,T).*alpha(x,y,s);
+end
+
+[x,y] = meshgrid(-5:0.01:5);
+z = f(x,y,s,w,R0,T);
+surf(x,y,z) 
+
+figure(2) %% fitness contours
+
+contour(x,y,z, [0 0])
+
+figure(3) %% fitness contours + surface
+
+surf(x,y,z,'EdgeColor','none','FaceAlpha',0.7)
+hold on
+% Use fourth input for color scale.
+patch([5 -5 -5 5], [5 5 -5 -5], [0 0 0 0], 'white')  
+hold off
+
