@@ -78,7 +78,7 @@ end
 %% generate n species with random phenotypes
 
 % configuration space dimensions
-n = 100; % number of species
+n = 2; % number of species
 d = 2; % dimension of phenotype space 
 
 % standard deviations
@@ -153,9 +153,20 @@ for j = 1:n
     y = squeeze(trajectory(:,j,i)); 
     plot(y(1,:),y(2,:),linewidth=2) 
 end
+hold off
 
-y1 = squeeze(trajectory(:,1,i));
-y2 = squeeze(trajectory(:,2,i));
+figure
+clf
+plot3(0,0,1:steps)
+hold on
+for j = 1:n
+    y = squeeze(trajectory(:,j,i)); 
+    plot3(y(1,:),y(2,:),1:steps,linewidth=2) 
+end
+hold off
+
+% y1 = squeeze(trajectory(:,1,i));
+% y2 = squeeze(trajectory(:,2,i));
 
 % figure
 % for j=1:steps

@@ -369,8 +369,8 @@ n0 = 1; % initial number of species
 d = 3; % dimension of phenotype space 
 
 % standard deviations
-sd_a = 1; % competition sd
-sd_K = 0.5; % carrying capacity sd
+sd_a = 0.5; % competition sd
+sd_K = 1; % carrying capacity sd
 
 % species initial conditions
 x0 = [0.4;0.4;0.4]; % phenotype matrix. each column represents a species' phenotype
@@ -452,7 +452,7 @@ end
 
 %% plots
 
-figure(1)
+figure
 
 axis equal
 zero = zeros(d,1);
@@ -470,54 +470,54 @@ zero = zeros(d,1);
 % end
 
 % 3d phenotype space
-% i = 1:steps;
-% plot3(zero(1),zero(2),zero(3),'o') 
-% hold on
-% plot3(trajectory(1,:,1),trajectory(2,:,1),trajectory(3,:,1),'o') % initial position
+i = 1:steps;
+plot3(zero(1),zero(2),zero(3),'o') 
+hold on
+plot3(trajectory(1,:,1),trajectory(2,:,1),trajectory(3,:,1),'o') % initial position
 % plot3(trajectory(1,:,end),trajectory(2,:,end),trajectory(3,:,end),'x')
-% % for j = 1:n0
-% %     plot3(x0(1,j),x0(2,j),x0(3,j),'o')
-% % end
-% for j = 1:n
-%     y = squeeze(trajectory(:,j,i));
-%     plot3(y(1,end),y(2,end),y(3,end),'x')
-%     plot3(y(1,:),y(2,:),y(3,:),linewidth=4);
-% end    
-% hold off
+% for j = 1:n0
+%     plot3(x0(1,j),x0(2,j),x0(3,j),'o')
+% end
+for j = 1:n
+    y = squeeze(trajectory(:,j,i));
+    plot3(y(1,end),y(2,end),y(3,end),'x')
+    plot3(y(1,:),y(2,:),y(3,:),linewidth=4);
+end    
+hold off
 
 %% animations
 
 
 % Initialise:
 
-M(steps) = struct('cdata',[],'colormap',[]);
-colors = viridis(n);
-f = figure;
-
-for i = 1:steps
-    clf
-    plot3(0,0,0,'o',color='black')
-    hold on
-    plot3(x0(1),x0(2),x0(3),'o')
-    for j = 1:n
-        x = squeeze(trajectory(1,j,1:i));
-        y = squeeze(trajectory(2,j,1:i));
-        z = squeeze(trajectory(3,j,1:i));
-        plot3(x,y,z,linewidth = 2,color=colors(j,:))
-        plot3(x(i),y(i),z(i),'o',MarkerFaceColor=colors(j,:),MarkerEdgeColor=colors(j,:),linewidth=3)% plot trajectory up to i
-    end
-    axis equal
-    xlim([-2,2])
-    ylim([-2,2])
-    zlim([-2,2])
-    view(0.25*(45+i),20)
-    M(i) = getframe(f, [300 30 740 580]);
-end
-hold off
-
-tss = VideoWriter('traitsubsequence5', 'MPEG-4');
-tss.FrameRate=60;
-
-open(tss)
-writeVideo(tss,M)
-close(tss)
+% M(steps) = struct('cdata',[],'colormap',[]);
+% colors = viridis(n);
+% f = figure;
+% 
+% for i = 1:steps
+%     clf
+%     plot3(0,0,0,'o',color='black')
+%     hold on
+%     plot3(x0(1),x0(2),x0(3),'o')
+%     for j = 1:n
+%         x = squeeze(trajectory(1,j,1:i));
+%         y = squeeze(trajectory(2,j,1:i));
+%         z = squeeze(trajectory(3,j,1:i));
+%         plot3(x,y,z,linewidth = 2,color=colors(j,:))
+%         plot3(x(i),y(i),z(i),'o',MarkerFaceColor=colors(j,:),MarkerEdgeColor=colors(j,:),linewidth=3)% plot trajectory up to i
+%     end
+%     axis equal
+%     xlim([-2,2])
+%     ylim([-2,2])
+%     zlim([-2,2])
+%     view(0.25*(45+i),20)
+%     M(i) = getframe(f, [300 30 740 580]);
+% end
+% hold off
+% 
+% tss = VideoWriter('traitsubsequence5', 'MPEG-4');
+% tss.FrameRate=60;
+% 
+% open(tss)
+% writeVideo(tss,M)
+% close(tss)
