@@ -12,11 +12,11 @@ function r = GrowthRate(x)
     r = ones(N,1);
 end
 
-function K = CarryingCapacity(x,var_K,K0)
+function K = CarryingCapacity(x,var_K)
 % Input: x is the (traits x species) phenotype configuration matrix
 % Output: K is the carrying capacity vector of the n species
 D2 = sum(x.^2,1);
-K = K0*exp(-D2./(2.*var_K));
+K = exp(-D2./(2.*var_K));
 K = K(:);
 end
 
@@ -25,7 +25,7 @@ function alpha = Competition(x,var_a)
     % Output: alpha is the (species x species) competition matrix. alpha_ij
     %  is the competition species i experiences from species j
     D2 = pdist2(x', x', 'euclidean').^2; % pairwise squared distances
-    alpha = exp(-D2 ./ (2 * var_a)); % symmetric Gaussian competition
+    alpha = 1-D2/var_a; % symmetric Gaussian competition
     % remove interspecies competition
     alpha = alpha - eye(size(alpha));
 end
@@ -36,29 +36,22 @@ end
 dim = 1;
 
 % initial conditions
-N = 200;
+N = 400;
 X0 = ones(N,1);
-x0 = 0.01*randn(dim,N) - 1.5;
+x0 = 0.1*randn(dim,N)+1;
 
 % ecological parameters
-var_a = 1.25^2;
-var_K = 4;
-K0 = 100;
+var_a = 0.5;
+var_K = 0.25;
 
 % numerical parameters
-var_m = 0.02;
+var_m = 0.5;
 sd_m = sqrt(var_m);
-% get an estimate of the maximal population by integrating 
-xpts = -5:0.1:5;
-ypts = CarryingCapacity(xpts,var_K,K0);
-NCC = trapz(ypts);
-Nmax = round(NCC + 50);
-stepsmax = 60000;
+Nmax = 2000;
+stepsmax = 2000;
 threshhold = 10;
 
 %% Gillespie Algorithm
-
-tic
 
 % initialise
 timedata = NaN(stepsmax,1);
@@ -89,7 +82,7 @@ while step < stepsmax & N < Nmax & N > threshhold
     Xeff = X(survivors);
     r = GrowthRate(xeff);
     % d = r./CarryingCapacity(xeff,var_K).*sum(Competition(xeff,var_a),2);
-    d = r./CarryingCapacity(xeff,var_K,K0).*sum(Competition(xeff,var_a),2);
+    d = 1/N.*r./CarryingCapacity(xeff,var_K).*sum(Competition(xeff,var_a),2);
     R = sum(r);
     D = sum(d);
     propensity = R + D;
@@ -132,8 +125,6 @@ while step < stepsmax & N < Nmax & N > threshhold
     Nlist(step) = N;
 end
 
-toc
-
 tfinal = timedata(step);
 frames = 10;
 tframe = tfinal/frames;
@@ -165,7 +156,7 @@ plot(timedata,Nlist)
 %     ylim([-5,5])
 % end
 
-for f = 0:frames
+for f = 1:frames
     figure
     t = tframe*f;
     i=1;
@@ -173,20 +164,5 @@ for f = 0:frames
         i = i+1;
     end
     x = phenodata(:,:,i);
-    histogram(x,-3:0.1:3)
+    histogram(x,-3:0.2:3)
 end
-
-% heatmap (?)
-% xdata = reshape(phenodata(1,:,:),[Nmax*step,1]);
-% ydata = repmat(timedata,1,Nmax);
-% ydata = ydata';
-% ydata = reshape(ydata,[Nmax*step,1]);
-% % histogram2(xdata,ydata,-3:0.1:3,0:tfinal/step:tfinal)
-% [counts, edges] = histcounts2(xdata,ydata,-2:0.1:1,timedata);
-% figure
-% imagesc(edges(1), edges(2), counts)
-% colormap(jet)  % choose a colormap
-% colorbar  % add a colorbar to the plot
-% axis xy  % set the axis orientation to x-y
-% xlabel('x')  % label the x-axis
-% ylabel('y')  % label the y-axis

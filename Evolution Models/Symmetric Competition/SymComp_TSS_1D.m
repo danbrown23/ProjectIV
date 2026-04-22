@@ -102,7 +102,6 @@ X0 = 0.1.*ones(n0,1); % initial population vector
 
 % numerical parameters
 
-frames = 5;
 stepsize = 0.01; % step size
 steps = 1000; % steps
 tspan = [0,1000]; % ecological integration timespan
@@ -149,7 +148,7 @@ for i = 2:steps
         branchcount = i;
         r = randi(n,1);
         branch_species1 = survivors(r);
-        [~,extinct] = setdiff(x,x(survivors));
+        [~,extinct] = setdiff(x,x(survivors),'stable');
         if isempty(x(extinct)) == false
             branch_species2 = extinct(1);
             x(:,branch_species2) = x(:,branch_species1) + 0.1*stepsize*randn(d,1);
@@ -203,7 +202,7 @@ figure
 hold on
 for i = 1:nmax
     y = PopulationData(i,:);
-    plot(1:steps,y,'o');
+    plot(1:steps,y);
 end
 hold off
 
@@ -214,26 +213,29 @@ popsums = sum(PopulationData,1);
 plot(1:steps,popsums);
 
 % population profiles
-% tic
-% for k = 1:frames
-%     frame = k*round(steps/frames);
-%     figure
-%     x = trajectory(:,:,frame);
-%     h = histogram(x,-2:0.1:2);
-%     e = h.BinEdges;
-%     popavg = zeros(1,h.NumBins-1);
-%     for i = 1:h.NumBins
-%         popavg(i) = 0;
-%         for j = 1:nbound
-%             if e(i) < x(:,j) && x(:,j) < e(i+1)
-%                 popavg(i) = popavg(i) + PopulationData(j,frame);
-%             end
-%         end
-%     end
-%     scaledcounts = h.BinCounts.*popavg;
-%     bar(e(1:end-1), scaledcounts, 'hist');
-% end
-% toc
+
+frames = 5;
+
+tic
+for k = 1:frames
+    frame = k*round(steps/frames);
+    figure
+    x = trajectory(:,:,frame);
+    h = histogram(x,-2:0.05:2);
+    e = h.BinEdges;
+    popavg = zeros(1,h.NumBins-1);
+    for i = 1:h.NumBins
+        popavg(i) = 0;
+        for j = 1:divlim
+            if e(i) < x(:,j) && x(:,j) < e(i+1)
+                popavg(i) = popavg(i) + PopulationData(j,frame);
+            end
+        end
+    end
+    scaledcounts = h.BinCounts.*popavg;
+    bar(e(1:end-1), scaledcounts, 'hist');
+end
+toc
 
 % population profile movie
 % M(steps) = struct('cdata',[],'colormap',[]);

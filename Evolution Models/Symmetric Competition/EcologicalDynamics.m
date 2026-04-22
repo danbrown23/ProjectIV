@@ -57,7 +57,7 @@ end
 %% parameter configuration
 
 % configuration space dimensions
-n = 500; % number of species
+n = 5000; % number of species
 
 % standard deviations
 sd_a = 0.5; % competition sd

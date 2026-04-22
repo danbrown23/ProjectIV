@@ -1,17 +1,3 @@
-%% SUMMARY:
-% ------------------------------------------------------------------------%
-% Implements a stochastic trait substitution sequence to model evolution.
-% ------------------------------------------------------------------------%
-% Features:
-%   -Extinction
-%   -Population Tracking
-%   -Branching via splitting a randomly chosen population in half every b
-%   time steps
-%   -Merging of sufficiently similar species
-%   -The option for an artificially imposed maximal diversity 
-% ------------------------------------------------------------------------%
-
-
 %% PRELIMINARIES
 
 clear
@@ -91,23 +77,22 @@ n0 = 1; % initial number of species
 d = 1; % dimension of phenotype space 
 
 % system parameters
-var_a = 0.75^2; % competition var
-var_K = 4; % carrying capacity var
+var_a = 0.25; % competition var
+var_K = 1; % carrying capacity var
 divlim = 1000; % maximal diversity
 
 % initial conditions
 
-x0 = -1.5;
+x0 = 0.4;
 X0 = 0.1.*ones(n0,1); % initial population vector
-
 
 % numerical parameters
 
 frames = 5;
 stepsize = 0.01; % step size
-steps = 5000; % steps
+steps = 1000; % steps
 tspan = [0,1000]; % ecological integration timespan
-branchtime = 5; % steps between each branch event
+branchtime = 1; % steps between each branch event
 mergedist = 0.5; % the threshhold distance between two trajectories before 
                  % they are merged
 mergetime = 100; % how often the algorithm checks for merges
@@ -129,12 +114,12 @@ mergecount = 0;
 % set initial conditions
 x(:,1:n0) = x0;
 nbound = n0; % number of species in the system data
-X(1:n0) = EffectiveCarryingCapacity(x0,X0,var_K,var_a,tspan); 
+X(1:n0) = EffectiveCarryingCapacity(x0,X0,var_K,var_a,tspan);
 survivors = find(X~=0);
 xeff = x(:,survivors); % surviving species currently in the system
 Xeff = X(survivors);
 trajectory(:,survivors,1) = xeff;
-PopulationData(:,1) = Xeff;
+PopulationData(survivors,1) = Xeff;
 nlist(1) = n0;
 n = length(survivors); % number of species currently in the system
 
@@ -208,8 +193,13 @@ for i = 1:nmax
 end
 hold off
 
-% population profiles
+% total population against time
+figure
+%PopulationData(:,1)
+popsums = sum(PopulationData,1);
+plot(1:steps,popsums);
 
+% population profiles
 tic
 for k = 1:frames
     frame = k*round(steps/frames);
@@ -231,44 +221,8 @@ for k = 1:frames
 end
 toc
 
-% population profile movie
-% M(steps) = struct('cdata',[],'colormap',[]);
-% f = figure;
-% 
-% for frame = 1:steps
-%     clf
-%     x = trajectory(:,:,frame);
-%     h = histogram(x,-2:0.05:2);
-%     e = h.BinEdges;
-%     popavg = zeros(1,h.NumBins-1);
-%     for i = 1:h.NumBins
-%         popavg(i) = 0;
-%         for j = 1:nmax
-%             if e(i) < x(:,j) && x(:,j) < e(i+1)
-%                 popavg(i) = popavg(i) + PopulationData(j,frame);
-%             end
-%         end
-%     end
-%     scaledcounts = h.BinCounts.*popavg;
-%     bar(e(1:end-1), scaledcounts, 'hist');
-% 
-%     xlim([-2,2])
-%     ylim([0,4])
-% 
-%     M(frame) = getframe(f);
-% end
-% hold off
-% 
-% tss = VideoWriter('Symmetric_Population_Distribution_Evolution10000', 'MPEG-4');
-% tss.FrameRate=60;
-% 
-% open(tss)
-% writeVideo(tss,M)
-% close(tss)
+% trajectory
 
-% 1d phenotype space
-
-% trait substitution sequence
 figure
 hold on
 for i = 1:nmax
@@ -276,109 +230,3 @@ for i = 1:nmax
     plot(1:steps,y(:))
 end
 hold off
-
-
-% 2d phenotype space
-
-% frames = 5;
-% colres = 2; % number of decimal places population data is rounded to
-% zmax = ceil(max(PopulationData,[],'all')*10^colres);
-% colnum = int32(zmax);
-% v = viridis(colnum);
-% for i = 1:frames
-%     figure
-%     step = i*round(steps/frames);
-%     x = rmmissing(trajectory(1,:,step))';
-%     y = rmmissing(trajectory(2,:,step))';
-%     z = nonzeros(PopulationData(:,step));
-%     zindex = (10^colres*z);
-%     zindex = int32(ceil(zindex))
-%     vz = v(zindex);
-%     scatter3(x,y,z,100,vz,'filled');
-% end
-% for i = 1:frames
-%     figure
-%     step = i*round(steps/frames);
-%     x = rmmissing(trajectory(1,:,step))';
-%     y = rmmissing(trajectory(2,:,step))';
-%     z = nonzeros(PopulationData(:,step));
-%     zindex = (10^colres*z);
-%     zindex = int32(ceil(zindex));
-%     vz = v(zindex);
-%     scatter(x,y,100,vz,'filled');
-% end
-%
-% figure
-% 
-% hold on
-% axis equal
-% plot(0,0,'o') 
-% for j = 1:n0
-%     plot(x0(1,j),x0(2,j),'o')
-% end
-% for j = 1:nbound
-%     y = trajectory(:,j,:); 
-%     plot(y(1,:),y(2,:), linewidth = 2) 
-% end
-% hold off
-
-% figure
-% for j = 1:nmax
-%     y = trajectory(:,j,:);
-%     plot3(y(1,:),y(2,:),1:steps,linewidth = 2) 
-%     hold on
-% end
-% hold off
-
-% 3d phenotype space
-% i = 1:steps;
-% plot3(zero(1),zero(2),zero(3),'o') 
-% hold on
-% plot3(trajectory(1,:,1),trajectory(2,:,1),trajectory(3,:,1),'o') % initial position
-% % plot3(trajectory(1,:,end),trajectory(2,:,end),trajectory(3,:,end),'x')
-% % for j = 1:n0
-% %     plot3(x0(1,j),x0(2,j),x0(3,j),'o')
-% % end
-% for j = 1:n
-%     y = squeeze(trajectory(:,j,i));
-%     plot3(y(1,end),y(2,end),y(3,end),'x')
-%     plot3(y(1,:),y(2,:),y(3,:),linewidth=4);
-% end    
-% hold off
-
-%% animations
-
-
-% Initialise:
-
-% M(steps) = struct('cdata',[],'colormap',[]);
-% colors = viridis(n);
-% f = figure;
-% 
-% for i = 1:steps
-%     clf
-%     plot3(0,0,0,'o',color='black')
-%     hold on
-%     plot3(x0(1),x0(2),x0(3),'o')
-%     for j = 1:n
-%         x = squeeze(trajectory(1,j,1:i));
-%         y = squeeze(trajectory(2,j,1:i));
-%         z = squeeze(trajectory(3,j,1:i));
-%         plot3(x,y,z,linewidth = 2,color=colors(j,:))
-%         plot3(x(i),y(i),z(i),'o',MarkerFaceColor=colors(j,:),MarkerEdgeColor=colors(j,:),linewidth=3)% plot trajectory up to i
-%     end
-%     axis equal
-%     xlim([-2,2])
-%     ylim([-2,2])
-%     zlim([-2,2])
-%     view(0.25*(45+i),20)
-%     M(i) = getframe(f, [300 30 740 580]);
-% end
-% hold off
-% 
-% tss = VideoWriter('traitsubsequence5', 'MPEG-4');
-% tss.FrameRate=60;
-% 
-% open(tss)
-% writeVideo(tss,M)
-% close(tss)

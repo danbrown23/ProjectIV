@@ -1,6 +1,6 @@
 %% SUMMARY:
 % ------------------------------------------------------------------------%
-% Implements a stochastic trait substitution sequence to model evolution.
+% Implements the canonical equation of adaptive dynamics to model evolution.
 %
 % Features:
 %   -Extinction
@@ -53,26 +53,23 @@ end
 % ------------------------------------------------------------------------%
 % configuration space dimensions
 n0 = 1; % initial number of species
-d = 10; % dimension of phenotype space 
+d = 1; % dimension of phenotype space 
 
-% model parameters
+% system parameters
 var_a = 0.25; % competition variance
 var_K = 1; % carrying capacity variance
+divlim = 1000; % maximal diversity
 
 % initial conditions
 x0 = randn(d,n0); % (trait x species) phenotype matrix
 X0 = 0.1.*ones(n0,1); % initial population vector
 
 % numerical parameters
-divlim = 100; % maximal diversity
+frames = 5; % surveys of the population distribution taken
 stepsize = 0.01; % variance of the random normal mutation step
-steps = 500; % evolutionary timespan
+steps = 1000; % evolutionary timespan
 tspan = [0,1000]; % ecological integration timespan
 branchtime = 1; % steps between each branch event
-
-% plotting parameters
-frames = 5; % surveys of the population distribution taken
-
 % ------------------------------------------------------------------------%
 %% Adaptive Dynamics
 % ------------------------------------------------------------------------%
@@ -110,7 +107,7 @@ end
 
 % initialise
 
-nmax = min(n0 + floor(steps/branchtime),divlim);
+nmax = n0 + floor(steps/branchtime);
 trajectory = NaN(d,nmax,steps);
 PopulationData = zeros(nmax,steps);
 nlist = NaN(steps);
@@ -130,99 +127,3 @@ PopulationData(survivors,1) = Xeff;
 nlist(1) = n0;
 n = length(survivors); % number of species currently in the system
 
-tic
-% trait substitution algorithm
-for i = 2:steps
-    i
-    if n > 0
-        % disp(["step =",i]);
-        % disp(["species =",n]);
-        % if i-branchcount > branchtime - 1 && n < divlim
-        %     % branch event: randomly selects a species to branch then generates
-        %     % two mutants, splitting the population between them
-        %     % disp("branched!")
-        %     branchcount = i;
-        %     nbound = nbound + 1;
-        %     r = randi(n,1);
-        %     branch_species = survivors(r);
-        %     x(:,nbound) = x(:,branch_species) + 0.25*stepsize*randn(d,1);
-        %     X(nbound) = 0.5*X(branch_species);
-        %     % x(:,branch_species) = x(:,branch_species) + 0.5*stepsize*randn(d,1);
-        %     X(branch_species) = 0.5*X(branch_species);
-        %     survivors = [survivors,nbound]; % add the branched species
-        % end
-        if i-branchcount > branchtime - 1 && n < divlim % BETTER BRANCHING
-            % branch event: randomly selects a species to branch then generates
-            % two mutants, splitting the population between them
-            % disp("branched!")
-            branchcount = i;
-            r = randi(n,1);
-            branch_species1 = survivors(r);
-            [~,extinct] = setdiff(x,x(survivors),'stable');
-            if isempty(x(extinct)) == false
-                branch_species2 = extinct(1);
-                x(:,branch_species2) = x(:,branch_species1) + 0.1*stepsize*randn(d,1);
-                X(branch_species2) = 0.5*X(branch_species1);
-            else
-                nbound = nbound+1;
-                branch_species2 = nbound;
-                x(:,branch_species2) = x(:,branch_species1) + 0.1*stepsize*randn(d,1);
-                X(branch_species2) = 0.5*X(branch_species1);
-            end
-            % nbound = nbound+1;
-            % branch_species2 = nbound;
-            % x(:,branch_species2) = x(:,branch_species1) + 0.1*stepsize*randn(d,1);
-            % X(branch_species2) = 0.5*X(branch_species1);
-            x(:,branch_species1) = x(:,branch_species1) + 0.1*stepsize*randn(d,1);
-            X(branch_species1) = 0.5*X(branch_species1);
-            survivors = [survivors,branch_species2]; % add the branched species
-        end
-        xeff = x(:,survivors);
-        Xeff = X(survivors);
-        n = length(survivors);
-        % mutation
-        y = xeff + stepsize*randn(d,n); % mutation step
-        f = Fitness(xeff,y,Xeff,var_K,var_a);
-        invaders = find(f>0); % find which species outcompete
-        xeff(:,invaders) = y(:,invaders);
-        % reincorporate to the full system
-        x(:,survivors) = xeff;
-        X(survivors) = Xeff;
-        % check for ecological extinction
-        X(survivors) = EffectiveCarryingCapacity(xeff,Xeff,var_K,var_a,tspan);
-        survivors = find(X~=0);
-        % update data
-        n = length(survivors); % current number of species
-        xeff = x(:,survivors);
-        Xeff = X(survivors);
-        trajectory(:,survivors,i) = xeff;
-        PopulationData(survivors,i) = Xeff;
-        nlist(i) = n;
-    end
-end
-toc
-% ------------------------------------------------------------------------%
-%% plots
-% ------------------------------------------------------------------------%
-% number of species against time
-figure
-plot(1:steps,nlist)
-
-% populations against time
-figure
-hold on
-for i = 1:divlim
-    y = PopulationData(i,:);
-    plot(1:steps,y);
-end
-hold off
-
-% total population against time
-figure
-popsums = sum(PopulationData,1);
-plot(1:steps,popsums);
-
-T500 = trajectory(1,:,500)
-P = PopulationData(:,500)
-find(~isnan(T500))
-find(P)
