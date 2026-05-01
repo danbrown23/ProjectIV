@@ -1,0 +1,258 @@
+%% Algorithm for simulating the evolution of niche width and niche position
+clear
+
+set(0,'defaultTextFontName', 'Arial')
+set(0,'defaultaxesfontsize', 27); % 27 for 1X3, 20 for 1X2
+set(0,'defaultAxesTickLabelInterpreter','none');
+set(0,'defaulttextinterpreter','latex');
+set(0,'defaultAxesXGrid','off');
+set(0,'defaultAxesYGrid','off');
+set(0,'defaultAxesTickDir','out');
+set(0,'defaultAxesLineWidth',1.5);
+
+% ------------------------------------------------------------------------%
+%% Phenotype Parametrisations
+% ------------------------------------------------------------------------%
+
+function r = GrowthRate(x,y,c,R_0,w,s,T)
+n = length(x);
+r = zeros(n,1);
+for i = 1:n
+    r(i) = R_0*w*s./(sqrt(s^2+y(i).^2)).*exp(-(c.*y(i))-x(i).^2./(2.*(s.^2+y(i).^2)))-T;
+end
+end
+
+function K = CarryingCapacity(x,y,c,R_0,w,s,T,r_R)
+n = length(x);
+K = zeros(n,1);
+for i = 1:n
+    K(i) = r_R.*y(i).*sqrt(2.*pi*(2.*s^2+y(i).^2)).*exp(c.*y(i)).*exp(x(i).^2./(2*s^2+y(i).^2)).*(exp(-x(i).^2./(2*(s^2+y(i).^2)))./(sqrt(s^2+y(i).^2))-(T.*exp(c.*y(i))/(R_0.*w.*s)));
+end
+end
+
+function alpha = Competition(x,y,c,s) % competition x,y experiences from u,v
+n = length(x);
+alpha = zeros(n,n);
+for i =1:n
+    for j = 1:n
+        alpha(i,j) = y(i).*sqrt((2.*s.^2+y(i).^2)./(y(i).^2.*y(j).^2+s^2.*(y(i).^2+y(j).^2))).*exp(c.*(y(i)-y(j))+x(i).^2./(2.*s^2+y(i).^2)-(x(j).^2.*y(i).^2+x(i).^2.*y(j).^2+s^2.*(x(j)-x(i)).^2)./(2.*(y(j).^2.*y(i).^2+s^2.*(y(j).^2+y(i).^2))));
+    end
+end
+end
+
+% ------------------------------------------------------------------------%
+%% Parameter Configuration
+% ------------------------------------------------------------------------%
+% configuration space dimensions
+n0 = 1; % initial number of species
+d = 2; % dimension of phenotype space 
+
+% system parameters
+% c = 0.5;
+clist = [1,2,3,4];
+R_0 = 1.5;
+w = 1;
+s = 0.5;
+T = 0.05;
+r_R = 1;
+divlim = 2000; % maximal diversity
+
+% initial conditions
+x0 = [0.4;0.4]; % (trait x species) phenotype matrix
+X0 = 0.1.*ones(n0,1); % initial population vector
+
+% numerical parameters
+frames = 5; % surveys of the population distribution taken
+stepsize = 0.01; % variance of the random normal mutation step
+steps = 2000; % evolutionary timespan
+tspan = [0,1000]; % ecological integration timespan
+branchtime = 5; % steps between each branch event
+% ------------------------------------------------------------------------%
+%% Adaptive Dynamics
+% ------------------------------------------------------------------------%
+% population dynamics
+function dXdt = populationdynamics(X,r,K,alpha)
+% given an instantaneous population vector and r, K, and alpha 
+% precalculated, returns the dynamics vector 
+    dXdt = r.*X.*(1-alpha*X./K);
+end
+
+function X = EffectiveCarryingCapacity(x,y,c,R_0,w,s,T,r_R,X0,tspan) % (allowing 
+% extinction) given a phenotype matrix and an initial population vector, returns the 
+% effective carrying capacity vector 
+    r = GrowthRate(x,y,c,R_0,w,s,T);
+    K = CarryingCapacity(x,y,c,R_0,w,s,T,r_R);
+    alpha = Competition(x,y,c,s);
+    [~, X] = ode45(@(t,X) populationdynamics(X,r,K,alpha),tspan,X0);
+    X = X(end,:);
+    X = X(:);
+    X(X<0.001) = 0;
+end
+
+% fitness
+function f = Fitness(u,v,x,y,X,c,R_0,w,s,T,r_R)
+n = length(x);
+ux = [x,u];
+vy = [y,v];
+X = X(:);
+r = GrowthRate(u,v,c,R_0,w,s,T);
+K = CarryingCapacity(u,v,c,R_0,w,s,T,r_R);
+alpha = Competition(ux,vy,c,s);
+beta = alpha(n+1:2*n,1:n);
+f = r.*(1-beta*X./K);
+end
+
+figure
+for c=clist
+% initialise
+
+nmax = n0 + floor(steps/branchtime);
+trajectory = NaN(d,nmax,steps);
+PopulationData = zeros(nmax,steps);
+nlist = NaN(1,steps);
+x = NaN(d,nmax);
+X = zeros(1,nmax);
+branchcount = 0;
+
+% set initial conditions
+x(:,1:n0) = x0;
+nbound = n0; % number of species in the system data
+X(1:n0) = EffectiveCarryingCapacity(x0(1,:),x0(2,:),c,R_0,w,s,T,r_R,X0,tspan);
+
+survivors = find(X~=0);
+xeff = x(:,survivors); % surviving species currently in the system
+Xeff = X(survivors);
+trajectory(:,survivors,1) = xeff;
+PopulationData(survivors,1) = Xeff;
+nlist(1) = n0;
+n = length(survivors); % number of species currently in the system
+
+tic
+% trait substitution algorithm
+for i = 2:steps
+    disp(["step =",i]); 
+    disp(["species =",n]); 
+    if i-branchcount > branchtime - 1 && n < divlim
+        % branch event: randomly selects a species to branch then generates
+        % two mutants, splitting the population between them
+        % disp("branched!")
+        branchcount = i;
+        nbound = nbound + 1;
+        r = randi(n,1);
+        branch_species = survivors(r);
+        x(:,nbound) = x(:,branch_species) + 0.25*stepsize*randn(d,1);
+        X(nbound) = 0.5*X(branch_species);
+        % x(:,branch_species) = x(:,branch_species) + 0.5*stepsize*randn(d,1);
+        X(branch_species) = 0.5*X(branch_species);
+        survivors = [survivors,nbound]; % add the branched species
+    end
+    xeff = x(:,survivors);
+    Xeff = X(survivors);
+    n = length(survivors);
+    % mutation
+    u = xeff + stepsize*randn(d,n); % mutation step
+
+    fxeff = xeff(1,:); % turn them into the right form
+    fyeff = xeff(2,:);
+    fueff = u(1,:);
+    fveff = u(2,:);
+
+    f = Fitness(fueff,fveff,fxeff,fyeff,Xeff,c,R_0,w,s,T,r_R);
+    invaders = find(f>0); % find which species outcompete
+    xeff(:,invaders) = u(:,invaders);
+    % reincorporate to the full system
+    x(:,survivors) = xeff;
+    X(survivors) = Xeff;
+    % check for ecological extinction
+    X(survivors) = EffectiveCarryingCapacity(fxeff,fyeff,c,R_0,w,s,T,r_R,Xeff,tspan);
+    survivors = find(X~=0);
+    % update data
+    n = length(survivors); % current number of species
+    xeff = x(:,survivors);
+    Xeff = X(survivors);
+    trajectory(:,survivors,i) = xeff; 
+    PopulationData(survivors,i) = Xeff; 
+    nlist(i) = n;
+end
+toc
+% ------------------------------------------------------------------------%
+%% plots
+% ------------------------------------------------------------------------%
+% number of species against time
+
+hold on
+plot(1:steps,nlist)
+xlabel("Time Steps")
+ylabel("Number of Species")
+end
+% % populations against time
+% figure
+% hold on
+% for i = 1:nmax
+%     y = PopulationData(i,:);
+%     plot(1:steps,y);
+% end
+% hold off
+
+% total population against time
+% figure
+% popsums = sum(PopulationData,1);
+% plot(1:steps,popsums);
+
+% 
+% % trajectory
+% figure
+% plot(0,0,'o') 
+% hold on
+% scatter(trajectory(1,:,1),trajectory(2,:,1),'o') 
+% scatter(trajectory(1,:,end),trajectory(2,:,end),'x')
+% for j = 1:nmax
+%     y = trajectory(:,j,1:steps);
+%     plot(y(1,:),y(2,:),linewidth=4);
+% end    
+% hold off
+
+% trajectory over time
+% figure
+% for j = 1:nmax
+%     y = trajectory(:,j,:);
+%     plot3(y(1,:),y(2,:),1:steps,linewidth = 2) 
+%     hold on
+% end
+% hold off
+% 
+% view(-45,20);
+% xlabel('Niche Position');
+% ylabel('Niche Width');
+% zlabel('Timesteps');
+% end
+% trajectory movie
+% M(steps) = struct('cdata',[],'colormap',[]);
+% colors = viridis(n);
+% f = figure;
+% 
+% for i = 1:steps
+%     clf
+%     plot(0,0,'o',color='black')
+%     hold on
+%     plot(x0(1),x0(2),'o')
+%     for j = 1:n
+%         x = trajectory(1,j,1:i);
+%         y = trajectory(2,j,1:i);
+%         plot(x,y,linewidth = 2,color=colors(j,:))
+%         plot(x(i),y(i),'o',MarkerFaceColor=colors(j,:),MarkerEdgeColor=colors(j,:),linewidth=3)
+%     end
+%     axis equal
+%     xlim([-2,2])
+%     ylim([-2,2])
+% 
+%     M(i) = getframe(f);
+% end
+% hold off
+% 
+% tss = VideoWriter('traitsubsequence2d', 'MPEG-4');
+% tss.FrameRate=60;
+% 
+% open(tss)
+% writeVideo(tss,M)
+% close(tss)
